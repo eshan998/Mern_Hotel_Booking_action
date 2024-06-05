@@ -1,0 +1,99 @@
+name: CICD Pipeline
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+jobs:
+  # CodeScan:
+  #   name: SonarCloud
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0  #  Shallow clones should be disabled for a better relevancy of analysis
+  #     - name: SonarCloud Scan
+  #       uses: SonarSource/sonarcloud-github-action@master
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     - name: install trivy
+  #       run: |
+  #         sudo apt-get install wget apt-transport-https gnupg lsb-release
+  #         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+  #         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+  #         sudo apt-get update
+  #         sudo apt-get install trivy
+  #         #scanning files
+  #         trivy fs .
+  build_and_push_docker_image:
+    # needs: CodeScan
+    if: >
+          github.event_name == 'pull_request' && 
+          github.event.action == 'closed' && 
+          github.event.pull_request.merged == true ||
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: login to dockerhub
+      run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
+    - name: build and push frontend docker image
+      working-directory: frontend
+      run: |
+        docker build --file Dockerfile -t eshan3312/mern-food-delivery-frontend-action .
+        docker push eshan3312/mern-food-delivery-frontend-action:latest
+        cd ..
+    - name: build and push backend image to dockerhub
+      working-directory: backend
+      run: |
+        docker build --file Dockerfile -t eshan3312/mern-food-delivery-backend-action .
+        docker push eshan3312/mern-food-delivery-backend-action:latest
+        cd ..
+  deploy_to_aws:
+    needs: build_and_push_docker_image
+    runs-on: [aws]
+    steps:
+    - name: git clone
+      run: |
+        cd ~/Hotel_Booking_application
+        rm -rf MERN_food_delivery_app_git_action
+        git clone https://github.com/eshan998/MERN_food_delivery_app_git_action.git
+        cd MERN_food_delivery_app_git_action
+        ls -al
+        cd frontend
+        touch .env
+        echo "VITE_API_BASE_URL=${{secrets.VITE_API_BASE_URL}}" >> .env
+        echo "VITE_STRIPE_PUB_KEY=${{secrets.VITE_STRIPE_PUB_KEY}}" >> .env
+        cat .env
+        cd ..
+        cd backend
+        touch .env
+        echo "MONGODB_CONNECTION_STRING=${{secrets.MONGODB_CONNECTION_STRING}}" >> .env
+        echo "JWT_SECRET_KEY=${{secrets.JWT_SECRET_KEY}}" >> .env
+        echo "FRONTEND_URL=${{secrets.FRONTEND_URL}}" >> .env
+        echo "CLOUDINARY_CLOUD_NAME=${{secrets.CLOUDINARY_CLOUD_NAME}}" >> .env
+        echo "CLOUDINARY_API_KEY=${{secrets.CLOUDINARY_API_KEY}}" >> .env
+        echo "CLOUDINARY_API_SECRET=${{secrets.CLOUDINARY_API_SECRET}}" >> .env
+        echo "STRIPE_API_KEY=${{secrets.STRIPE_API_KEY}}" >> .env
+        cat .env
+        cd ..
+        # docker compose down -v
+        # docker rmi --force eshan3312/mern-food-delivery-frontend-action:latest || true
+        # docker rmi --force eshan3312/mern-food-delivery-backend-action:latest || true
+    # - name: pull latest images
+    #   run: |
+    #     docker image pull eshan3312/mern-food-delivery-frontend-action:latest
+    #     docker image pull eshan3312/mern-food-delivery-backend-action:latest
+    # - name: scan image with trivy
+    #   run: |
+    #     trivy image eshan3312/mern-food-delivery-frontend-action:latest
+    #     trivy image eshan3312/mern-food-delivery-backend-action:latest
+    # - name: create new deployment
+    #   run: |
+    #     docker-compose up -d --force-recreate
+    #     docker ps
+

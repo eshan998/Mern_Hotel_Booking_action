@@ -1,0 +1,74 @@
+version: "3.8"
+services:
+  frontend:
+    image: eshan3312/mern-food-delivery-frontend-action:latest
+    container_name: mern-frontend
+    depends_on:
+      - backend
+    env_file:
+     - path: ./mern-food-ordering-app-frontend/.env
+    ports:
+      - "5173:5173"
+    # networks:
+    #   - food
+    networks:
+      room-wise:
+        ipv4_address: 10.5.0.2
+  backend:
+    image: eshan3312/mern-food-delivery-backend-action:latest
+    container_name: mern-backend
+    env_file:
+     - path: ./mern-food-ordering-app-backend/.env
+    # depends_on:
+    #   - mongo
+    ports:
+      - "7000:7000"
+    # networks: 
+    #  - food
+    networks:
+      room-wise:
+        ipv4_address: 10.5.0.3
+  
+  # mongo:
+  #   image: mongo
+  #   container_name: mongodb
+  #   restart: always
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root*
+  #     MONGO_INITDB_ROOT_PASSWORD: example*
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   # networks: 
+  #   #  - food
+  #   networks:
+  #     room-wise:
+  #       ipv4_address: 10.5.0.4
+
+  # mongo-express:
+  #   image: mongo-express
+  #   container_name: mongo_express
+  #   restart: always
+  #   ports:
+  #     - 8081:8081
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: root*
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: example*
+  #     ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+  #     ME_CONFIG_BASICAUTH: false
+  #   # networks: 
+  #   #  - food
+  #   networks:
+  #     room-wise:
+  #       ipv4_address: 10.5.0.5
+
+# networks:
+#   food:
+networks:
+  room-wise:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
+# volumes: 
+#   mongodb_data:
