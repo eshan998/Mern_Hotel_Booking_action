@@ -6,55 +6,55 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
 jobs:
-  CodeScan_with_Sonar_and_Trivy:
-    # name: SonarCloud and Trivy Scan (if set then job name will be this)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  #  Shallow clones should be disabled for a better relevancy of analysis
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: File Scan with Trivy
-        run: |
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
-          #scanning files
-          trivy fs .
-  Build_and_Push_Docker_Images:
-    needs: CodeScan_with_Sonar_and_Trivy
-    if: >
-          github.event_name == 'pull_request' && 
-          github.event.action == 'closed' && 
-          github.event.pull_request.merged == true ||
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-      - name: login to dockerhub
-        run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
-      - name: Build and Push Frontend Image
-        working-directory: frontend
-        run: |
-          docker build --file Dockerfile -t eshan3312/mern-hotel-booking-frontend-action .
-          docker push eshan3312/mern-hotel-booking-frontend-action:latest
-          cd ..
-      - name: Build and Push Backend Image
-        working-directory: backend
-        run: |
-          docker build --file Dockerfile -t eshan3312/mern-hotel-booking-backend-action .
-          docker push eshan3312/mern-hotel-booking-backend-action:latest
-          cd ..
+  # CodeScan_with_Sonar_and_Trivy:
+  #   # name: SonarCloud and Trivy Scan (if set then job name will be this)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0  #  Shallow clones should be disabled for a better relevancy of analysis
+  #     - name: SonarCloud Scan
+  #       uses: SonarSource/sonarcloud-github-action@master
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #     - name: File Scan with Trivy
+  #       run: |
+  #         sudo apt-get install wget apt-transport-https gnupg lsb-release
+  #         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+  #         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+  #         sudo apt-get update
+  #         sudo apt-get install trivy
+  #         #scanning files
+  #         trivy fs .
+  # Build_and_Push_Docker_Images:
+  #   needs: CodeScan_with_Sonar_and_Trivy
+  #   if: >
+  #         github.event_name == 'pull_request' && 
+  #         github.event.action == 'closed' && 
+  #         github.event.pull_request.merged == true ||
+  #         github.event_name == 'push' &&
+  #         github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout source
+  #       uses: actions/checkout@v4
+  #     - name: login to dockerhub
+  #       run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
+  #     - name: Build and Push Frontend Image
+  #       working-directory: frontend
+  #       run: |
+  #         docker build --file Dockerfile -t eshan3312/mern-hotel-booking-frontend-action .
+  #         docker push eshan3312/mern-hotel-booking-frontend-action:latest
+  #         cd ..
+  #     - name: Build and Push Backend Image
+  #       working-directory: backend
+  #       run: |
+  #         docker build --file Dockerfile -t eshan3312/mern-hotel-booking-backend-action .
+  #         docker push eshan3312/mern-hotel-booking-backend-action:latest
+  #         cd ..
   Deploy_to_AWS:
-    needs: Build_and_Push_Docker_Images
+    # needs: Build_and_Push_Docker_Images
     runs-on: [aws-hotel]
     #FRONTEND_URL=http://13.235.9.85:5174(for aws instance)
     #VITE_API_BASE_URL=http://13.235.9.85:7000
@@ -90,7 +90,8 @@ jobs:
         docker rmi --force eshan3312/mern-hotel-booking-backend-action:latest || true
     - name: Image Scan with Trity
       run: |
-        cd ~/Mern_Hotel_Booking_action 
+        cd ~/Hotel_Booking 
+        cd Mern_Hotel_Booking_action
         docker compose -f docker-compose-prod.yml build
         trivy image eshan3312/mern-hotel-booking-frontend-action:latest
         trivy image eshan3312/mern-hotel-booking-backend-action:latest
@@ -104,7 +105,8 @@ jobs:
     #     trivy image eshan3312/mern-food-delivery-backend-action:latest
     - name: Deploy to AWS
       run: |
-        cd ~/Mern_Hotel_Booking_action
+        cd ~/Hotel_Booking 
+        cd Mern_Hotel_Booking_action
         docker compose -f docker-compose-prod.yml up -d
         docker ps
 
