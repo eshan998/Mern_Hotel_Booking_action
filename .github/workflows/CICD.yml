@@ -61,7 +61,7 @@ jobs:
     steps:
     - name: Git Clone and Set Environment Variables
       run: |
-        cd ~/Hotel_Booking
+        cd ~/hotel/Hotel_Booking
         # cd Mern_Hotel_Booking_action
         # docker compose -f docker-compose-prod down -v
         # cd ..
@@ -90,8 +90,7 @@ jobs:
         docker rmi --force eshan3312/mern-hotel-booking-backend-action:latest || true
     - name: Image Scan with Trity
       run: |
-        cd ~/Hotel_Booking 
-        cd Mern_Hotel_Booking_action
+        cd ~/hotel/Hotel_Booking/Mern_Hotel_Booking_action
         docker compose -f docker-compose-prod.yml build
         trivy image eshan3312/mern-hotel-booking-frontend-action:latest
         trivy image eshan3312/mern-hotel-booking-backend-action:latest
@@ -105,8 +104,7 @@ jobs:
     #     trivy image eshan3312/mern-food-delivery-backend-action:latest
     - name: Deploy to AWS
       run: |
-        cd ~/Hotel_Booking 
-        cd Mern_Hotel_Booking_action
+        cd ~/hotel/Hotel_Booking/Mern_Hotel_Booking_action
         docker compose -f docker-compose-prod.yml up -d
         docker ps
 
