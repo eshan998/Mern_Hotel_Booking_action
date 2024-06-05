@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened, closed]
 jobs:
   CodeScan_with_Sonar_and_Trivy:
-    name: SonarCloud and Trivy Scan
+    # name: SonarCloud and Trivy Scan (if set then job name will be this)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,13 +41,13 @@ jobs:
         uses: actions/checkout@v4
       - name: login to dockerhub
         run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
-      - name: build and push frontend docker image
+      - name: Build and Push Frontend Image
         working-directory: frontend
         run: |
           docker build --file Dockerfile -t eshan3312/mern-hotel-booking-frontend-action .
           docker push eshan3312/mern-hotel-booking-frontend-action:latest
           cd ..
-      - name: build and push backend image to dockerhub
+      - name: Build and Push Backend Image
         working-directory: backend
         run: |
           docker build --file Dockerfile -t eshan3312/mern-hotel-booking-backend-action .
@@ -62,9 +62,9 @@ jobs:
     - name: Git Clone and Set Environment Variables
       run: |
         cd ~/Hotel_Booking
-        cd Mern_Hotel_Booking_action
-        docker compose -f docker-compose-prod down -v
-        cd ..
+        # cd Mern_Hotel_Booking_action
+        # docker compose -f docker-compose-prod down -v
+        # cd ..
         rm -rf Mern_Hotel_Booking_action
         git clone https://github.com/eshan998/Mern_Hotel_Booking_action.git
         cd Mern_Hotel_Booking_action
