@@ -6,29 +6,29 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
 jobs:
-  # CodeScan:
-  #   name: SonarCloud
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #       with:
-  #         fetch-depth: 0  #  Shallow clones should be disabled for a better relevancy of analysis
-  #     - name: SonarCloud Scan
-  #       uses: SonarSource/sonarcloud-github-action@master
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #     - name: install trivy
-  #       run: |
-  #         sudo apt-get install wget apt-transport-https gnupg lsb-release
-  #         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-  #         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-  #         sudo apt-get update
-  #         sudo apt-get install trivy
-  #         #scanning files
-  #         trivy fs .
-  build_and_push_docker_image:
-    # needs: CodeScan
+  CodeScan_with_Sonar_and_Trivy:
+    name: SonarCloud and Trivy Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  #  Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: File Scan with Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+          #scanning files
+          trivy fs .
+  Build_and_Push_Docker_Images:
+    needs: CodeScan_with_Sonar_and_Trivy
     if: >
           github.event_name == 'pull_request' && 
           github.event.action == 'closed' && 
@@ -37,32 +37,37 @@ jobs:
           github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout source
-      uses: actions/checkout@v4
-    - name: login to dockerhub
-      run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
-    - name: build and push frontend docker image
-      working-directory: frontend
-      run: |
-        docker build --file Dockerfile -t eshan3312/mern-food-delivery-frontend-action .
-        docker push eshan3312/mern-food-delivery-frontend-action:latest
-        cd ..
-    - name: build and push backend image to dockerhub
-      working-directory: backend
-      run: |
-        docker build --file Dockerfile -t eshan3312/mern-food-delivery-backend-action .
-        docker push eshan3312/mern-food-delivery-backend-action:latest
-        cd ..
-  deploy_to_aws:
-    needs: build_and_push_docker_image
-    runs-on: [aws]
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: login to dockerhub
+        run: docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_TOKEN}}
+      - name: build and push frontend docker image
+        working-directory: frontend
+        run: |
+          docker build --file Dockerfile -t eshan3312/mern-hotel-booking-frontend-action .
+          docker push eshan3312/mern-hotel-booking-frontend-action:latest
+          cd ..
+      - name: build and push backend image to dockerhub
+        working-directory: backend
+        run: |
+          docker build --file Dockerfile -t eshan3312/mern-hotel-booking-backend-action .
+          docker push eshan3312/mern-hotel-booking-backend-action:latest
+          cd ..
+  Deploy_to_AWS:
+    needs: Build_and_Push_Docker_Images
+    runs-on: [aws-hotel]
+    #FRONTEND_URL=http://13.235.9.85:5174(for aws instance)
+    #VITE_API_BASE_URL=http://13.235.9.85:7000
     steps:
-    - name: git clone
+    - name: Git Clone and Set Environment Variables
       run: |
-        cd ~/Hotel_Booking_application
-        rm -rf MERN_food_delivery_app_git_action
-        git clone https://github.com/eshan998/MERN_food_delivery_app_git_action.git
-        cd MERN_food_delivery_app_git_action
+        cd ~/Hotel_Booking
+        cd Mern_Hotel_Booking_action
+        docker compose -f docker-compose-prod down -v
+        cd ..
+        rm -rf Mern_Hotel_Booking_action
+        git clone https://github.com/eshan998/Mern_Hotel_Booking_action.git
+        cd Mern_Hotel_Booking_action
         ls -al
         cd frontend
         touch .env
@@ -70,7 +75,7 @@ jobs:
         echo "VITE_STRIPE_PUB_KEY=${{secrets.VITE_STRIPE_PUB_KEY}}" >> .env
         cat .env
         cd ..
-        cd backend
+        cd backend      
         touch .env
         echo "MONGODB_CONNECTION_STRING=${{secrets.MONGODB_CONNECTION_STRING}}" >> .env
         echo "JWT_SECRET_KEY=${{secrets.JWT_SECRET_KEY}}" >> .env
@@ -81,9 +86,13 @@ jobs:
         echo "STRIPE_API_KEY=${{secrets.STRIPE_API_KEY}}" >> .env
         cat .env
         cd ..
-        # docker compose down -v
-        # docker rmi --force eshan3312/mern-food-delivery-frontend-action:latest || true
-        # docker rmi --force eshan3312/mern-food-delivery-backend-action:latest || true
+        docker rmi --force eshan3312/mern-hotel-booking-frontend-action:latest || true
+        docker rmi --force eshan3312/mern-hotel-booking-backend-action:latest || true
+    - name: Image Scan with Trity
+      run: |
+        docker compose -f docker-compose-prod.yml build
+        trivy image eshan3312/mern-hotel-booking-frontend-action:latest
+        trivy image eshan3312/mern-hotel-booking-backend-action:latest
     # - name: pull latest images
     #   run: |
     #     docker image pull eshan3312/mern-food-delivery-frontend-action:latest
@@ -92,8 +101,8 @@ jobs:
     #   run: |
     #     trivy image eshan3312/mern-food-delivery-frontend-action:latest
     #     trivy image eshan3312/mern-food-delivery-backend-action:latest
-    # - name: create new deployment
-    #   run: |
-    #     docker-compose up -d --force-recreate
-    #     docker ps
+    - name: Deploy to AWS
+      run: |
+        docker compose -f docker-compose-prod.yml up -d
+        docker ps
 
