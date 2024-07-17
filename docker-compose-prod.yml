@@ -1,21 +1,21 @@
 version: "3.8"
 services:
   frontend:
-    image: eshan3312/mern-hotel-booking-frontend-action:latest
+    image: eshan3312/mern-hotel-booking-frontend-action:nginx
     container_name: mern-frontend
     depends_on:
       - backend
     env_file:
      - path: ./frontend/.env
     ports:
-      - "5174:5174"
+      - "80:80"
     # networks:
     #   - food
     networks:
       room-wise:
         ipv4_address: 10.5.0.2
   backend:
-    image: eshan3312/mern-hotel-booking-backend-action:latest
+    image: eshan3312/mern-hotel-booking-backend-action:min
     container_name: mern-backend
     env_file:
      - path: ./backend/.env
